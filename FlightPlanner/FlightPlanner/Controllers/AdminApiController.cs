@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Linq;
 using FlightPlanner.Models;
 using FlightPlanner.Storage;
 using FlightPlanner.Checker;
+using FlightPlanner.Context;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FlightPlanner.Controllers
 {
@@ -13,11 +16,19 @@ namespace FlightPlanner.Controllers
     [Authorize]
     public class AdminApiController : ControllerBase
     {
+        private readonly FlightPlannerContext _context;
+        private FlightStorage _storage;
+        public AdminApiController(FlightPlannerContext context)
+        {
+            _context = context;
+            _storage = new FlightStorage(context);
+        }
+
         [HttpGet]
         [Route("flights/{id}")]
         public IActionResult GetFlights(int id)
         {
-            var flight = FlightStorage.GetFlight(id);
+            var flight = _storage.GetFlight(id);
             if(flight == null) 
                 return NotFound();
 
@@ -30,7 +41,7 @@ namespace FlightPlanner.Controllers
         {
             if (flight != null)
             {
-                if (FlightStorage.CheckSameFlights(flight))
+                if (_storage.CheckSameFlights(flight))
                 {
                     return Conflict();
                 }
@@ -51,7 +62,8 @@ namespace FlightPlanner.Controllers
                 }
             }
 
-            flight = FlightStorage.AddFlight(flight);
+            _context.Flights.Add(flight);
+            _context.SaveChanges();
 
             return Created("", flight);
         }
@@ -60,7 +72,7 @@ namespace FlightPlanner.Controllers
         [Route("flights/{id}")]
         public IActionResult DeleteFlight(int id)
         {
-            FlightStorage.DeleteFlight(id);
+            _storage.DeleteFlight(id);
             return Ok();
         }
     }
