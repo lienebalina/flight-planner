@@ -16,12 +16,10 @@ namespace FlightPlanner.Controllers
     [Authorize]
     public class AdminApiController : ControllerBase
     {
-        private readonly FlightPlannerContext _context;
         private FlightStorage _storage;
-        public AdminApiController(FlightPlannerContext context)
+        public AdminApiController(FlightStorage storage)
         {
-            _context = context;
-            _storage = new FlightStorage(context);
+            _storage = storage;
         }
 
         [HttpGet]
@@ -39,7 +37,7 @@ namespace FlightPlanner.Controllers
         [Route("flights")]
         public IActionResult AddFlight(Flight flight)
         {
-            if (flight != null)
+            if (flight != null )
             {
                 if (_storage.CheckSameFlights(flight))
                 {
@@ -60,11 +58,10 @@ namespace FlightPlanner.Controllers
                 { 
                     return BadRequest();
                 }
+
+                _storage.AddFlight(flight);
             }
-
-            _context.Flights.Add(flight);
-            _context.SaveChanges();
-
+            
             return Created("", flight);
         }
 

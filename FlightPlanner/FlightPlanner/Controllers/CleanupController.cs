@@ -9,18 +9,17 @@ namespace FlightPlanner.Controllers
     [ApiController]
     public class CleanupController : ControllerBase
     {
-        private readonly FlightPlannerContext _context;
-        public CleanupController(FlightPlannerContext context)
+        private readonly FlightStorage _storage;
+        public CleanupController(FlightStorage storage)
         {
-            _context = context;
+            _storage = storage;
         }
 
         [HttpPost]
         [Route("clear")]
         public IActionResult Clear()
         {
-            _context.Flights.RemoveRange(_context.Flights);
-            _context.Airports.RemoveRange(_context.Airports);
+            _storage.Clear();
             return Ok();
         }
     }

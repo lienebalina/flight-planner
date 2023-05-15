@@ -12,12 +12,10 @@ namespace FlightPlanner.Controllers
     [ApiController]
     public class CostumerApiController : ControllerBase
     {
-        private readonly FlightPlannerContext _context;
         private FlightStorage _storage;
-        public CostumerApiController(FlightPlannerContext context)
+        public CostumerApiController(FlightStorage storage)
         {
-            _context = context;
-            _storage = new FlightStorage(context);
+            _storage = storage;
         }
 
         [HttpGet]
