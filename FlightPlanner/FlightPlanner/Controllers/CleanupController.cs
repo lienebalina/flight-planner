@@ -1,6 +1,4 @@
-﻿using FlightPlanner.Context;
-using FlightPlanner.Storage;
-using Microsoft.AspNetCore.Http;
+﻿using FlightPlanner.Storage;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FlightPlanner.Controllers

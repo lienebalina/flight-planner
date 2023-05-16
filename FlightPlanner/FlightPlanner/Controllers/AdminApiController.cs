@@ -1,13 +1,8 @@
-﻿using System;
-using System.Linq;
-using FlightPlanner.Models;
+﻿using FlightPlanner.Models;
 using FlightPlanner.Storage;
 using FlightPlanner.Checker;
-using FlightPlanner.Context;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace FlightPlanner.Controllers
 {
@@ -39,8 +34,6 @@ namespace FlightPlanner.Controllers
         {
             if (flight != null )
             {
-                
-
                 if (FlightChecker.IsFlightValueNullOrEmpty(flight))
                 {
                     return BadRequest();
