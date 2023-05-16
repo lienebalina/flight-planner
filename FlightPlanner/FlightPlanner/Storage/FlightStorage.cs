@@ -53,16 +53,7 @@ namespace FlightPlanner.Storage
                     flight.From.City != null && flight.From.Country != null && flight.To.AirportCode != null &&
                     flight.To.City != null && flight.To.Country != null)
                 {
-                    if(_context.Flights.Any(f =>
-                        flight.ArrivalTime == f.ArrivalTime &&
-                        flight.Carrier == f.Carrier &&
-                        flight.DepartureTime == f.DepartureTime &&
-                        flight.From.AirportCode == f.From.AirportCode &&
-                        flight.From.City == f.From.City &&
-                        flight.From.Country == f.From.Country &&
-                        flight.To.AirportCode == f.To.AirportCode &&
-                        flight.To.City == f.To.City &&
-                        flight.To.Country == f.To.Country))
+                    if(IsItDuplicate(flight))
                     {
                         return true;
                     }
@@ -79,6 +70,20 @@ namespace FlightPlanner.Storage
                 }
                 return false;
             }
+        }
+
+        public bool IsItDuplicate(Flight flight)
+        {
+            return _context.Flights.Any(f =>
+                f.ArrivalTime == flight.ArrivalTime &&
+                f.Carrier == flight.Carrier &&
+                f.DepartureTime == flight.DepartureTime &&
+                f.From.AirportCode == flight.From.AirportCode &&
+                f.From.City == flight.From.City &&
+                f.From.Country == flight.From.Country &&
+                f.To.AirportCode == flight.To.AirportCode &&
+                f.To.City == flight.To.City &&
+                f.To.Country == flight.To.Country);
         }
 
         public void DeleteFlight(int id)

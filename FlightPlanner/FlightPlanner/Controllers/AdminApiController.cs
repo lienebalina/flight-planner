@@ -39,10 +39,7 @@ namespace FlightPlanner.Controllers
         {
             if (flight != null )
             {
-                if (_storage.CheckSameFlights(flight))
-                {
-                    return Conflict();
-                }
+                
 
                 if (FlightChecker.IsFlightValueNullOrEmpty(flight))
                 {
@@ -57,6 +54,11 @@ namespace FlightPlanner.Controllers
                 if (FlightChecker.AreTheDepartureAndArrivalDateTimesValid(flight))
                 { 
                     return BadRequest();
+                }
+
+                if (_storage.CheckSameFlights(flight))
+                {
+                    return Conflict();
                 }
 
                 _storage.AddFlight(flight);
