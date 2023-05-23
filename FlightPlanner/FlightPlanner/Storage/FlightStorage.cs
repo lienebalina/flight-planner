@@ -1,128 +1,125 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using FlightPlanner.Context;
 using FlightPlanner.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace FlightPlanner.Storage
 {
-    public static class FlightStorage
+    public class FlightStorage
     {
-        private static List<Flight> _flights = new List<Flight>();
         private static readonly object _lock = new object();
-        
-        public static Flight GetFlight(int id)
+        private readonly FlightPlannerContext _context;
+
+        public FlightStorage(FlightPlannerContext context)
+        {
+            _context = context;
+        }
+
+        public Flight GetFlight(int id)
         {
             lock (_lock)
             {
-                return _flights.SingleOrDefault(flight => flight.Id == id);
+                return _context.Flights.Include(f => f.From)
+                    .Include(f => f.To)
+                    .SingleOrDefault(f => f.Id == id);
             }
         }
 
-        public static Flight AddFlight(Flight flight)
+        public Flight AddFlight(Flight flight)
         {
             lock (_lock)
             {
-                flight.Id = _flights.Count;
-                _flights.Add(flight);
-                
-                return flight;
+                _context.Flights.Add(flight);
+                _context.SaveChanges();
+            }
+
+            return flight;
+        }
+
+        public void Clear()
+        {
+            lock (_lock)
+            {
+                _context.Flights.RemoveRange(_context.Flights);
+                _context.Airports.RemoveRange(_context.Airports);
+                _context.SaveChanges();
             }
         }
-
-        public static void ClearFlights()
-        {
-            _flights.Clear();
-        }
-
-        public static bool CheckSameFlights(Flight flight)
+        public bool CheckSameFlights(Flight flight)
         {
             lock (_lock)
             {
-                foreach (var f in _flights)
+                if (flight != null && flight.ArrivalTime != null && flight.To != null && flight.From != null && flight.Carrier != null &&
+                    flight.DepartureTime != null && flight.From.AirportCode != null &&
+                    flight.From.City != null && flight.From.Country != null && flight.To.AirportCode != null &&
+                    flight.To.City != null && flight.To.Country != null)
                 {
-                    if (ToLowercaseTrim(flight.ArrivalTime) == ToLowercaseTrim(f.ArrivalTime) &&
-                        ToLowercaseTrim(flight.Carrier) == ToLowercaseTrim(f.Carrier) &&
-                        ToLowercaseTrim(flight.DepartureTime) == ToLowercaseTrim(f.DepartureTime) &&
-                        ToLowercaseTrim(flight.From.AirportCode) == ToLowercaseTrim(f.From.AirportCode) &&
-                        ToLowercaseTrim(flight.From.City) == ToLowercaseTrim(f.From.City) &&
-                        ToLowercaseTrim(flight.From.Country) == ToLowercaseTrim(f.From.Country) &&
-                        ToLowercaseTrim(flight.To.AirportCode) == ToLowercaseTrim(f.To.AirportCode) &&
-                        ToLowercaseTrim(flight.To.City) == ToLowercaseTrim(f.To.City) &&
-                        ToLowercaseTrim(flight.To.Country) == ToLowercaseTrim(f.To.Country))
+                    if(IsItDuplicate(flight))
                     {
                         return true;
                     }
                 }
-            }
 
-            return false;
+                return false;
+            }
         }
 
-        public static string ToLowercaseTrim(string s)
+        public bool IsItDuplicate(Flight flight)
         {
-            if (s != null)
-            {
-                return s!.ToLower().Trim();
-            }
-
-            return s;
+            return _context.Flights.Any(f =>
+                f.ArrivalTime == flight.ArrivalTime &&
+                f.Carrier == flight.Carrier &&
+                f.DepartureTime == flight.DepartureTime &&
+                f.From.AirportCode == flight.From.AirportCode &&
+                f.From.City == flight.From.City &&
+                f.From.Country == flight.From.Country &&
+                f.To.AirportCode == flight.To.AirportCode &&
+                f.To.City == flight.To.City &&
+                f.To.Country == flight.To.Country);
         }
 
-        public static void DeleteFlight(int id)
+        public void DeleteFlight(int id)
         {
-            var flightIndex = 0;
-
             lock (_lock)
             {
-                if (id <= _flights.Count && id >= 0)
-                {
-                    for (int i = 0; i < _flights.Count; i++)
-                    {
-                        if (id == _flights[i].Id)
-                        {
-                            flightIndex = i;
-                        }
-                    }
+                var flightToDelete = _context.Flights
+                    .Include(f => f.To)
+                    .Include(f =>f.From)
+                    .SingleOrDefault(f => f.Id == id);
 
-                    _flights.RemoveAt(flightIndex);
+                if (flightToDelete != null)
+                {
+                    _context.Flights.Remove(flightToDelete);
+                    _context.Airports.Remove(flightToDelete.From);
+                    _context.Airports.Remove(flightToDelete.To);
+                    _context.SaveChanges();
                 }
             }
         }
 
-        public static Airport[] SearchAirport(string search)
+        public Airport[] SearchAirport(string search)
         {
             var airports = new List<Airport>();
-            search = ToLowercaseTrim(search);
-
+            search = search.ToLower().Trim();
             lock (_lock)
             {
-                foreach (var flight in _flights)
-                {
-                    if (ToLowercaseTrim(flight.To.Country).Contains(search) ||
-                        ToLowercaseTrim(flight.To.AirportCode).Contains(search) ||
-                        ToLowercaseTrim(flight.To.City).Contains(search))
-                    {
-                        airports.Add(flight.To);
-                    }
-
-                    if (ToLowercaseTrim(flight.From.Country).Contains(search) ||
-                        ToLowercaseTrim(flight.From.AirportCode).Contains(search) ||
-                        ToLowercaseTrim(flight.From.City).Contains(search))
-                    {
-                        airports.Add(flight.From);
-                    }
-                }
+                airports = _context.Airports
+                    .Where(f => f.City.ToLower().Trim().Contains(search) ||
+                                f.Country.ToLower().Trim().Contains(search) ||
+                                f.AirportCode.ToLower().Trim().Contains(search)).ToList();
             }
 
             return airports.ToArray();
         }
 
-        public static PageResult SearchFlight(SearchFlightsRequest search)
+        public PageResult SearchFlight(SearchFlightsRequest search)
         {
             var flights = new List<Flight>();
 
             lock (_lock)
             {
-                foreach (var flight in _flights)
+                foreach (var flight in _context.Flights.Include(f => f.To).Include(f => f.From))
                 {
                     if (search.To == flight.To.AirportCode &&
                         search.From == flight.From.AirportCode &&

@@ -1,9 +1,7 @@
-﻿using System;
-using FlightPlanner.Models;
+﻿using FlightPlanner.Models;
 using FlightPlanner.Storage;
 using FlightPlanner.Checker;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FlightPlanner.Controllers
@@ -13,11 +11,17 @@ namespace FlightPlanner.Controllers
     [Authorize]
     public class AdminApiController : ControllerBase
     {
+        private FlightStorage _storage;
+        public AdminApiController(FlightStorage storage)
+        {
+            _storage = storage;
+        }
+
         [HttpGet]
         [Route("flights/{id}")]
         public IActionResult GetFlights(int id)
         {
-            var flight = FlightStorage.GetFlight(id);
+            var flight = _storage.GetFlight(id);
             if(flight == null) 
                 return NotFound();
 
@@ -28,13 +32,8 @@ namespace FlightPlanner.Controllers
         [Route("flights")]
         public IActionResult AddFlight(Flight flight)
         {
-            if (flight != null)
+            if (flight != null )
             {
-                if (FlightStorage.CheckSameFlights(flight))
-                {
-                    return Conflict();
-                }
-
                 if (FlightChecker.IsFlightValueNullOrEmpty(flight))
                 {
                     return BadRequest();
@@ -49,10 +48,15 @@ namespace FlightPlanner.Controllers
                 { 
                     return BadRequest();
                 }
+
+                if (_storage.CheckSameFlights(flight))
+                {
+                    return Conflict();
+                }
+
+                _storage.AddFlight(flight);
             }
-
-            flight = FlightStorage.AddFlight(flight);
-
+            
             return Created("", flight);
         }
 
@@ -60,7 +64,7 @@ namespace FlightPlanner.Controllers
         [Route("flights/{id}")]
         public IActionResult DeleteFlight(int id)
         {
-            FlightStorage.DeleteFlight(id);
+            _storage.DeleteFlight(id);
             return Ok();
         }
     }
