@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace FlightPlanner.Models
+namespace FlightPlanner.Core.Models
 {
     public class PageResult
     {
