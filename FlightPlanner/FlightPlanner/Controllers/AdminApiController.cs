@@ -1,8 +1,13 @@
-﻿using FlightPlanner.Models;
-using FlightPlanner.Storage;
-using FlightPlanner.Checker;
+﻿using System.Collections.Generic;
+using System.Linq;
+using AutoMapper;
+using FlightPlanner.Core.Deletion;
+using FlightPlanner.Core.Models;
+using FlightPlanner.Core.Validations;
+using FlightPlanner.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using FlightPlanner.Core.Services;
 
 namespace FlightPlanner.Controllers
 {
@@ -11,60 +16,66 @@ namespace FlightPlanner.Controllers
     [Authorize]
     public class AdminApiController : ControllerBase
     {
-        private FlightStorage _storage;
-        public AdminApiController(FlightStorage storage)
+        private static readonly object _lock = new object();
+        private readonly IMapper _mapper;
+        private readonly IEnumerable<IValidate> _validators;
+        private readonly IFlightService _flightService;
+        private readonly IFlightDelete _flightDelete;
+        public AdminApiController(IFlightService flightService,
+            IMapper mapper,
+            IEnumerable<IValidate> validators,
+            IFlightDelete flightDelete)
         {
-            _storage = storage;
+            _mapper = mapper;
+            _validators = validators;
+            _flightService = flightService;
+            _flightDelete = flightDelete;
         }
 
         [HttpGet]
         [Route("flights/{id}")]
         public IActionResult GetFlights(int id)
         {
-            var flight = _storage.GetFlight(id);
+            var flight = _flightService.GetFullFlight(id);
             if(flight == null) 
                 return NotFound();
 
-            return Ok(flight);
+            return Ok(_mapper.Map<AddFlightRequest>(flight));
         }
 
         [HttpPut]
         [Route("flights")]
-        public IActionResult AddFlight(Flight flight)
+        public IActionResult AddFlight(AddFlightRequest request)
         {
-            if (flight != null )
+            var flight = _mapper.Map<Flight>(request);
+
+            lock (_lock)
             {
-                if (FlightChecker.IsFlightValueNullOrEmpty(flight))
+                if (!_validators.All(v => v.IsValid(flight)))
                 {
                     return BadRequest();
                 }
 
-                if (FlightChecker.IsItTheSameAirport(flight))
-                {
-                    return BadRequest();
-                }
-
-                if (FlightChecker.AreTheDepartureAndArrivalDateTimesValid(flight))
-                { 
-                    return BadRequest();
-                }
-
-                if (_storage.CheckSameFlights(flight))
+                if (_flightService.FlightExists(flight))
                 {
                     return Conflict();
                 }
 
-                _storage.AddFlight(flight);
+                _flightService.Create(flight);
             }
-            
-            return Created("", flight);
+
+            return Created("", _mapper.Map<AddFlightRequest>(flight));
         }
 
         [HttpDelete]
         [Route("flights/{id}")]
         public IActionResult DeleteFlight(int id)
         {
-            _storage.DeleteFlight(id);
+            lock (_lock)
+            {
+                _flightDelete.Delete(id);
+            }
+
             return Ok();
         }
     }

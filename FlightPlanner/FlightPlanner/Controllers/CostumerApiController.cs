@@ -1,6 +1,11 @@
-﻿using FlightPlanner.Models;
-using FlightPlanner.Storage;
+﻿using AutoMapper;
+using FlightPlanner.Core.Models;
+using FlightPlanner.Core.Search;
+using FlightPlanner.Core.Services;
+using FlightPlanner.Models;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using SearchFlightsRequest = FlightPlanner.Core.Models.SearchFlightsRequest;
 
 namespace FlightPlanner.Controllers
 {
@@ -8,17 +13,33 @@ namespace FlightPlanner.Controllers
     [ApiController]
     public class CostumerApiController : ControllerBase
     {
-        private FlightStorage _storage;
-        public CostumerApiController(FlightStorage storage)
+        private readonly IFlightService _flightService;
+        private readonly ISearch _search;
+        private readonly IMapper _mapper;
+        public CostumerApiController(IFlightService flightService,
+            ISearch search,
+            IMapper mapper)
         {
-            _storage = storage;
+            _flightService = flightService;
+            _search = search;
+            _mapper = mapper;
         }
 
         [HttpGet]
         [Route("airports")]
         public IActionResult SearchAirports(string search)
         {
-            return Ok(_storage.SearchAirport(search));
+            var searchResults = _search.SearchAirports(search);
+
+            var mappedResults = new List<AddAirportRequest>();
+
+            foreach (var result in searchResults)
+            {
+                var mappedResult = _mapper.Map<AddAirportRequest>(result);
+                mappedResults.Add(mappedResult);
+            }
+
+            return Ok(mappedResults.ToArray());
         }
 
         [HttpPost]
@@ -35,18 +56,18 @@ namespace FlightPlanner.Controllers
                 return BadRequest();
             }
 
-            return Ok(_storage.SearchFlight(search));
+            return Ok(_search.SearchFlight(search));
         }
 
         [HttpGet]
         [Route("flights/{id}")]
         public IActionResult SearchFlightById(int id)
         {
-            var flight = _storage.GetFlight(id);
+            var flight = _flightService.GetFullFlight(id);
             if (flight == null) 
                 return NotFound();
             
-            return Ok(flight);
+            return Ok(_mapper.Map<AddFlightRequest>(flight));
         }
     }
 }
